@@ -36,6 +36,12 @@ heap_t intHeap__ =
 void os_initHeap(heap_t *heap)
 {
 	#warning [Praktikum 4] Implement here
+	mem_addr_t current_Addr = intHeap__.mapStart;
+	size_t size = intHeap__.mapSize;
+
+	for (uint16_t i = 0; i < size; i++){
+		intHeap__.driver->write(current_Addr + i, 0x00);
+	}
 }
 
 /* \brief Function that initializes all Heaps of the OS

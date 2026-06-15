@@ -8,11 +8,12 @@
  */
 #include "os_mem_drivers.h"
 #include "../lib/defines.h"
+// #include <util.h>
 
 //! Forward declarations
-void initSRAM_internal(void);
-mem_value_t readSRAM_internal(mem_addr_t addr);
-void writeSRAM_internal(mem_addr_t addr, mem_value_t value);
+static void initSRAM_internal(void);
+static mem_value_t readSRAM_internal(mem_addr_t addr);
+static void writeSRAM_internal(mem_addr_t addr, mem_value_t value);
 
 //! Driver instantiation for the internal SRAM memory
 mem_driver_t intSRAM__ =
@@ -27,9 +28,9 @@ mem_driver_t intSRAM__ =
 /*! \brief Pseudo-function to initialize the internal SRAM
  * Actually, there is nothing to be done when initializing the internal SRAM
  */
-void initSRAM_internal(void)
+static void initSRAM_internal(void)
 {
-	#warning [Praktikum 4] Implement here
+	//os_printf("SRAM INIT: Erfolgreich");
 }
 
 /*! \brief Private function to read a value from the internal SRAM
@@ -38,9 +39,10 @@ void initSRAM_internal(void)
  * \param addr The address to read the value from
  * \return The read value
  */
-mem_value_t readSRAM_internal(mem_addr_t addr)
+static mem_value_t readSRAM_internal(mem_addr_t addr)
 {
-	#warning [Praktikum 4] Implement here
+	mem_value_t value = *((volatile uint8_t*) addr);
+	return value;
 }
 
 /*! \brief Private function to write a value to the internal SRAM
@@ -49,9 +51,10 @@ mem_value_t readSRAM_internal(mem_addr_t addr)
  * \param addr The address the value shall be written to
  * \param value The value to be written
  */
-void writeSRAM_internal(mem_addr_t addr, mem_value_t value)
+static void writeSRAM_internal(mem_addr_t addr, mem_value_t value)
 {
-	#warning [Praktikum 4] Implement here
+	// *((volatile uint8_t*) addr) == das speicherbyte, auf das addr zeigt 
+	*((volatile uint8_t*) addr) = value;
 }
 
 /*! \brief Function that needs to be called once in order to initialize all used memories such as the internal SRAM etc...
@@ -59,6 +62,7 @@ void writeSRAM_internal(mem_addr_t addr, mem_value_t value)
 void initMemoryDevices(void)
 {
 	#warning [Praktikum 4] Implement here
+
 }
 
 

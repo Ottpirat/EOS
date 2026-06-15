@@ -94,6 +94,10 @@ mem_value_t os_getMapEntry(heap_t const* heap, mem_addr_t addr)
 mem_addr_t os_getFirstByteOfChunk(heap_t const* heap, mem_addr_t addr)
 {
 	#warning [Praktikum 4] Implement here
+	while (addr > heap->useStart && os_getMapEntry(heap, addr) == 0x0F){
+		addr--;
+	}
+	return addr;
 }
 
 /*! This function determines the value of the first nibble of a chunk. 
@@ -118,6 +122,20 @@ process_id_t getOwnerOfChunk(heap_t const* heap, mem_addr_t addr)
 size_t os_getChunkSize(heap_t const* heap, mem_addr_t addr)
 {
 	#warning [Praktikum 4] Implement here
+	mem_addr_t start_addr = os_getFirstByteOfChunk(heap, addr);
+
+	if (os_getMapEntry(heap, start_addr) == 0x00) {
+		return 0;
+	}
+
+	size_t size = 1;
+	mem_addr_t current = start_addr + 1;
+
+	while (current < heap->useStart + heap->useSize && os_getMapEntry(heap, current) == 0x0F) {
+		++size;
+		++current;
+	}
+	return size;
 }
 
 /*! Frees a chunk of allocated memory on the medium given by the driver.
@@ -153,6 +171,43 @@ void os_freeOwnerRestricted(heap_t* heap, mem_addr_t addr, process_id_t owner)
 mem_addr_t os_malloc(heap_t *heap, size_t size)
 {
 	#warning [Praktikum 4] Implement here
+	os_enterCriticalSection();
+
+	if (size == 0){
+		os_leaveCriticalSection();
+		return 0;
+	}
+
+	mem_addr_t start_addr = 0;
+
+	switch(heap->strategy){
+		case 0: start_addr = os_Memory_FirstFit(heap, size);
+				break;
+		case 1: start_addr = os_Memory_NextFit(heap, size);
+				break;
+		case 2: start_addr = os_Memory_BestFit(heap, size);
+				break;
+		case 3: start_addr = os_Memory_WorstFit(heap, size);
+				break;
+		case 4: start_addr = os_Memory_FirstFit(heap, size);
+				break;
+	}
+
+	if (start_addr != 0) {
+		process_id_t pid = os_getCurrentProc();
+		os_setMapEntry(heap, start_addr, pid);
+
+		for (uint16_t i = 1; i < size; i++) {
+			os_setMapEntry(heap, start_addr, 0x0F);
+		}
+		//os_printf("MALLOC: %d Bytes an Adresse 0x%04X fuer PID %d reserviert.\n", size, start_addr, pid);
+	}
+	else {
+	//os_printf("MALLOC: FEHLER - Nicht genuegend zusammenhaengender Speicher (%d Bytes).\n", size);
+	}
+
+	os_leaveCriticalSection();
+	return start_addr;
 }
 
 /*!
@@ -161,9 +216,32 @@ mem_addr_t os_malloc(heap_t *heap, size_t size)
  *  \param heap The driver to be used.
  *  \param addr An address inside of the chunk (not necessarily the start).
  */
-void os_free(heap_t *heap, mem_addr_t addr)
-{
+void os_free(heap_t *heap, mem_addr_t addr){
 	#warning [Praktikum 4] Implement here
+	os_enterCriticalSection();
+
+	mem_addr_t start_addr = os_getFirstByteOfChunk(heap, addr);
+	uint8_t pid_owner = os_getMapEntry(heap, start_addr);
+
+	if (pid_owner == 0x00){
+		//os_printf("os_free: Speicher ist bereits frei.");
+		os_leaveCriticalSection();
+		return;
+	}
+
+	if (pid_owner != os_getCurrentProc()) {
+		//os_printf("os_free: Mach dich aus meinem Speicher raus, du Birne!");
+		os_leaveCriticalSection();
+		return;
+	}
+
+	size_t size = os_getChunkSize(heap, start_addr);
+
+	for(int i = 0; i < size; i++) {
+		os_setMapEntry(heap, start_addr + i, 0x00);
+	}
+	//os_printf("os_free: %d Bytes freigegeben.\n", size);
+	os_leaveCriticalSection();
 }
 
 /*!
@@ -186,8 +264,9 @@ void os_freeProcessMemory(heap_t *heap, process_id_t pid)
 void os_setAllocationStrategy(heap_t *heap, alloc_strategy_t allocStrat)
 {
 	#warning [Praktikum 4] Implement here
+	heap->strategy = allocStrat;
 }
-
+ 
 /*!
  * Simple getter function to fetch the allocation strategy of a given heap
  * 
@@ -197,6 +276,7 @@ void os_setAllocationStrategy(heap_t *heap, alloc_strategy_t allocStrat)
 alloc_strategy_t os_getAllocationStrategy(heap_t const* heap)
 {
 	#warning [Praktikum 4] Implement here
+	return heap->strategy;
 }
 
 //----------------------------------------------------------------------------
