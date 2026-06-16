@@ -52,7 +52,7 @@
 #define ENABLE_TESTTASK			1
 
 // Enter testtask define (e.g. TT_INIT) and make sure ENABLE_TESTTASK is set to 1
-#define TESTTASK  40
+#define TESTTASK  45
 
 // Will run user_progs/user_progx.c if ENABLE_TESTTASK is set to 0
 #define USER_PROGRAM			USER_PROGRAM_DCF_CLOCK

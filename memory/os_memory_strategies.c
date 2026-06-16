@@ -90,7 +90,14 @@ mem_addr_t os_Memory_NextFit(heap_t* heap, size_t size)
     
     // Nur Next-Fit aktualisiert den lastChunk Pointer!
     if (found != 0) {
-        heap->lastChunk = found;
+        // Pointer hinter den allozierten Block schieben!
+        heap->lastChunk = found + size;
+        
+        // Sicherheitshalber den Wrap-Around direkt hier abfangen, 
+        // falls wir genau am Ende des Heaps gelandet sind.
+        if (heap->lastChunk >= heap->useStart + heap->useSize) {
+            heap->lastChunk = heap->useStart;
+        }
     }
     
     return found;

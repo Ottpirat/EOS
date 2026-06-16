@@ -247,7 +247,7 @@ mem_addr_t os_malloc(heap_t *heap, size_t size)
 		os_setMapEntry(heap, start_addr, pid);
 
 		for (uint16_t i = 1; i < size; i++) {
-			os_setMapEntry(heap, start_addr, 0x0F);
+			os_setMapEntry(heap, start_addr + i, 0x0F);
 		}
 		//os_printf("MALLOC: %d Bytes an Adresse 0x%04X fuer PID %d reserviert.\n", size, start_addr, pid);
 	}
@@ -281,17 +281,22 @@ void os_freeProcessMemory(heap_t *heap, process_id_t pid)
 {
 	#warning [Praktikum 4] Implement here
 	os_enterCriticalSection();
-    
+
     mem_addr_t current = heap->useStart;
     mem_addr_t end = heap->useStart + heap->useSize;
-    
+
     while (current < end) {
-        if (getOwnerOfChunk(heap, current) == pid) {
-            os_freeOwnerRestricted(heap, current, pid);
+        if (os_getMapEntry(heap, current) == 0x00) {
+            current++; // Ist frei, also nur ein Byte weiter
+        } else {
+            size_t size = os_getChunkSize(heap, current);
+            if (getOwnerOfChunk(heap, current) == pid) {
+                os_freeOwnerRestricted(heap, current, pid);
+            }
+            current += size; // BAM! Direkt über den gesamten Chunk springen
         }
-        current++;
     }
-    
+
     os_leaveCriticalSection();
 }
 
