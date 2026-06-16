@@ -3,9 +3,8 @@
 MCU=atmega2560
 PROGRAMMER=wiring
 PARTNO=m2560
-
-PORT=/dev/ttyACM0  # Change this to your port
-
+#PORT = $(shell ls /dev/ttyACM* 2>/dev/null | head -n 1)
+PORT = $(shell ls /dev/ttyACM* 2>/dev/null | tail -n 1)
 # Define the source files
 SRC = $(wildcard *.c) $(wildcard */*.c) $(wildcard progs/*/*.c)
 HEADERS = $(wildcard *.h) $(wildcard */*.h) $(wildcard progs/*/*.h)

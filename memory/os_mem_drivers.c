@@ -62,6 +62,7 @@ static void writeSRAM_internal(mem_addr_t addr, mem_value_t value)
 void initMemoryDevices(void)
 {
 	#warning [Praktikum 4] Implement here
+	intSRAM__.init();
 
 }
 

@@ -36,11 +36,11 @@ heap_t intHeap__ =
 void os_initHeap(heap_t *heap)
 {
 	#warning [Praktikum 4] Implement here
-	mem_addr_t current_Addr = intHeap__.mapStart;
+	mem_addr_t current_addr = intHeap__.mapStart;
 	size_t size = intHeap__.mapSize;
 
 	for (uint16_t i = 0; i < size; i++){
-		intHeap__.driver->write(current_Addr + i, 0x00);
+		intHeap__.driver->write(current_addr + i, 0x00);
 	}
 }
 
@@ -50,6 +50,10 @@ void os_initHeap(heap_t *heap)
 void os_initHeaps()
 {
 	#warning [Praktikum 4] Implement here
+	size_t length = os_getHeapListLength();
+	for (size_t i = 0; i < length; i++){
+		os_initHeap(os_lookupHeap(i));
+	}
 }
 
 //----------------------------------------------------------------------------

@@ -26,6 +26,9 @@
 inline void setLowNibble(heap_t const* heap, mem_addr_t addr, mem_value_t value)
 {
 	#warning [Praktikum 4] Implement here
+	uint8_t byte = heap->driver->read(addr);
+	byte = (byte & 0xF0) | (value & 0x0F);
+	heap->driver->write(addr, byte);
 }
 
 /*!
@@ -38,6 +41,9 @@ inline void setLowNibble(heap_t const* heap, mem_addr_t addr, mem_value_t value)
 inline void setHighNibble(heap_t const* heap, mem_addr_t addr, mem_value_t value)
 {
 	#warning [Praktikum 4] Implement here
+	uint8_t byte = heap->driver->read(addr);
+    byte = (byte & 0x0F) | ((value & 0x0F) << 4);
+    heap->driver->write(addr, byte);
 }
 
 /*! \brief Reads the value of the lower nibble of the given address
@@ -49,6 +55,7 @@ inline void setHighNibble(heap_t const* heap, mem_addr_t addr, mem_value_t value
 inline mem_value_t getLowNibble(heap_t const* heap, mem_addr_t addr)
 {
 	#warning [Praktikum 4] Implement here
+	return heap->driver->read(addr) &0x0F;
 }
 
 /*! \brief Reads the value of the higher nibble of the given address
@@ -60,6 +67,7 @@ inline mem_value_t getLowNibble(heap_t const* heap, mem_addr_t addr)
 inline mem_value_t getHighNibble(heap_t const* heap, mem_addr_t addr)
 {
 	#warning [Praktikum 4] Implement here
+	return (heap->driver->read(addr) >> 4) & 0x0F;
 }
 
 /*! \brief This function is used to set a heap map entry on a specific heap
@@ -71,6 +79,17 @@ inline mem_value_t getHighNibble(heap_t const* heap, mem_addr_t addr)
 void os_setMapEntry(heap_t const* heap, mem_addr_t addr, mem_value_t value)
 {
 	#warning [Praktikum 4] Implement here
+	if (addr < heap->useStart || addr >= heap->useStart + heap->useSize){
+		return;
+	}
+	uint16_t offset = addr - heap->useStart;
+	mem_addr_t mapAddr = heap->mapStart + (offset /2);
+
+	if (offset % 2 == 0) {
+        setHighNibble(heap, mapAddr, value);
+    } else {
+        setLowNibble(heap, mapAddr, value);
+    }
 }
 
 /*! This function is used to get a heap map entry on a specific heap
@@ -82,6 +101,18 @@ void os_setMapEntry(heap_t const* heap, mem_addr_t addr, mem_value_t value)
 mem_value_t os_getMapEntry(heap_t const* heap, mem_addr_t addr)
 {
 	#warning [Praktikum 4] Implement here
+	if (addr < heap->useStart || addr >= heap->useStart + heap->useSize){
+		return 0;
+	}
+    
+    uint16_t offset = addr - heap->useStart;
+    mem_addr_t mapAddr = heap->mapStart + (offset / 2);
+    
+    if (offset % 2 == 0) {
+        return getHighNibble(heap, mapAddr);
+    } else {
+        return getLowNibble(heap, mapAddr);
+    }
 }
 
 /*! This function is used to determine where a chunk starts if a given address might not point
@@ -109,6 +140,8 @@ mem_addr_t os_getFirstByteOfChunk(heap_t const* heap, mem_addr_t addr)
 process_id_t getOwnerOfChunk(heap_t const* heap, mem_addr_t addr)
 {
 	#warning [Praktikum 4] Implement here
+	mem_addr_t start_addr = os_getFirstByteOfChunk(heap, addr);
+	return os_getMapEntry(heap, start_addr);
 }
 
 /*!
@@ -151,6 +184,22 @@ size_t os_getChunkSize(heap_t const* heap, mem_addr_t addr)
 void os_freeOwnerRestricted(heap_t* heap, mem_addr_t addr, process_id_t owner)
 {
 	#warning [Praktikum 4] Implement here
+	os_enterCriticalSection();
+
+	mem_addr_t start_addr = os_getFirstByteOfChunk(heap, addr);
+	uint8_t pid_owner = getOwnerOfChunk(heap, start_addr);
+
+	if(pid_owner == 0x00 || pid_owner != owner) {
+		os_leaveCriticalSection();
+		return;
+	}
+
+	size_t size = os_getChunkSize(heap, start_addr);
+
+	for (size_t i = 0; i < size; i++){
+		os_setMapEntry(heap, start_addr + i, 0x00);
+	}
+	os_leaveCriticalSection();
 }
 
 
@@ -218,30 +267,7 @@ mem_addr_t os_malloc(heap_t *heap, size_t size)
  */
 void os_free(heap_t *heap, mem_addr_t addr){
 	#warning [Praktikum 4] Implement here
-	os_enterCriticalSection();
-
-	mem_addr_t start_addr = os_getFirstByteOfChunk(heap, addr);
-	uint8_t pid_owner = os_getMapEntry(heap, start_addr);
-
-	if (pid_owner == 0x00){
-		//os_printf("os_free: Speicher ist bereits frei.");
-		os_leaveCriticalSection();
-		return;
-	}
-
-	if (pid_owner != os_getCurrentProc()) {
-		//os_printf("os_free: Mach dich aus meinem Speicher raus, du Birne!");
-		os_leaveCriticalSection();
-		return;
-	}
-
-	size_t size = os_getChunkSize(heap, start_addr);
-
-	for(int i = 0; i < size; i++) {
-		os_setMapEntry(heap, start_addr + i, 0x00);
-	}
-	//os_printf("os_free: %d Bytes freigegeben.\n", size);
-	os_leaveCriticalSection();
+	os_freeOwnerRestricted(heap, addr, os_getCurrentProc());
 }
 
 /*!
@@ -254,6 +280,19 @@ void os_free(heap_t *heap, mem_addr_t addr){
 void os_freeProcessMemory(heap_t *heap, process_id_t pid)
 {
 	#warning [Praktikum 4] Implement here
+	os_enterCriticalSection();
+    
+    mem_addr_t current = heap->useStart;
+    mem_addr_t end = heap->useStart + heap->useSize;
+    
+    while (current < end) {
+        if (getOwnerOfChunk(heap, current) == pid) {
+            os_freeOwnerRestricted(heap, current, pid);
+        }
+        current++;
+    }
+    
+    os_leaveCriticalSection();
 }
 
 /*! 

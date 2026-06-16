@@ -41,6 +41,8 @@ void os_initTimer(void)
 void os_initMem(void)
 {
 	#warning [Praktikum 4] Implement here
+	initMemoryDevices();
+	os_initHeaps();
 }
 
 /*!
