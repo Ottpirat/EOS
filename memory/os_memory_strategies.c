@@ -30,32 +30,27 @@ mem_addr_t os_Memory_RangeFit(heap_t* heap, size_t size, mem_addr_t start)
     mem_addr_t end = heap->useStart + heap->useSize;
 
     while (current < end) {
-        // Ist das aktuelle Byte frei?
         if (os_getMapEntry(heap, current) == 0x00) {
             size_t free_space = 0;
-            mem_addr_t check = current;
+            mem_addr_t index = current;
             
-            // Zählen, wie groß das Loch ist
-            while (check < end && os_getMapEntry(heap, check) == 0x00 && free_space < size) {
+            while (index < end && os_getMapEntry(heap, index) == 0x00 && free_space < size) {
                 free_space++;
-                check++;
+                index++;
             }
             
-            // Reicht der Platz für unsere Anfrage?
             if (free_space == size) {
                 return current; 
             }
             
-            // Platz reicht nicht, also überspringen wir dieses nutzlose Loch komplett
-            current = check; 
+            current = index; 
         } else {
-            // Block ist belegt -> Springe direkt über den gesamten belegten Chunk!
-            // Das spart massiv Rechenzeit, statt jedes Byte einzeln zu prüfen.
             current += os_getChunkSize(heap, current); 
         }
     }
     
-    return 0; // Nichts gefunden in diesem Bereich
+    return 0; 
+    
 }
 
 /*!
@@ -81,26 +76,21 @@ mem_addr_t os_Memory_FirstFit(heap_t* heap, size_t size)
 mem_addr_t os_Memory_NextFit(heap_t* heap, size_t size)
 {
 	#warning [Praktikum 4] Implement here
-	mem_addr_t found = os_Memory_RangeFit(heap, size, heap->lastChunk);
+	mem_addr_t free_chunk = os_Memory_RangeFit(heap, size, heap->lastChunk);
     
-    // Wenn wir hinten angekommen sind und nichts gefunden haben: Wrap-Around!
-    if (found == 0) {
-        found = os_Memory_RangeFit(heap, size, heap->useStart);
+    if (free_chunk == 0) {
+        free_chunk = os_Memory_RangeFit(heap, size, heap->useStart);
     }
     
-    // Nur Next-Fit aktualisiert den lastChunk Pointer!
-    if (found != 0) {
-        // Pointer hinter den allozierten Block schieben!
-        heap->lastChunk = found + size;
-        
-        // Sicherheitshalber den Wrap-Around direkt hier abfangen, 
-        // falls wir genau am Ende des Heaps gelandet sind.
+    if (free_chunk != 0) {
+        heap->lastChunk = free_chunk + size;
+
         if (heap->lastChunk >= heap->useStart + heap->useSize) {
             heap->lastChunk = heap->useStart;
         }
     }
     
-    return found;
+    return free_chunk;
 }
 
 /*!
@@ -116,32 +106,30 @@ mem_addr_t os_Memory_BestFit(heap_t* heap, size_t size)
 	mem_addr_t current = heap->useStart;
     mem_addr_t end = heap->useStart + heap->useSize;
     
-    mem_addr_t best_addr = 0;
-    size_t best_size = 0xFFFF; // Startet mit unendlich großem Wert
+    mem_addr_t best_chunk = 0;
+    size_t best_size = 0xFFFF; 
 
     while (current < end) {
         if (os_getMapEntry(heap, current) == 0x00) {
             size_t free_space = 0;
-            mem_addr_t check = current;
+            mem_addr_t index = current;
             
-            // Komplettes Loch ausmessen (kein Abbruch bei 'size' wie bei RangeFit)
-            while (check < end && os_getMapEntry(heap, check) == 0x00) {
+            while (index < end && os_getMapEntry(heap, index) == 0x00) {
                 free_space++;
-                check++;
+                index++;
             }
             
-            // Ist das Loch groß genug UND kleiner als unser bisher bester Treffer?
             if (free_space >= size && free_space < best_size) {
                 best_size = free_space;
-                best_addr = current;
+                best_chunk = current;
             }
-            current = check; 
+            current = index; 
         } else {
             current += os_getChunkSize(heap, current); 
         }
     }
     
-    return best_addr;
+    return best_chunk;
 }
 
 /*!
@@ -157,7 +145,7 @@ mem_addr_t os_Memory_WorstFit(heap_t* heap, size_t size)
 	mem_addr_t current = heap->useStart;
     mem_addr_t end = heap->useStart + heap->useSize;
     
-    mem_addr_t worst_addr = 0;
+    mem_addr_t worst_chunk = 0;
     size_t worst_size = 0; 
 
     while (current < end) {
@@ -165,16 +153,14 @@ mem_addr_t os_Memory_WorstFit(heap_t* heap, size_t size)
             size_t free_space = 0;
             mem_addr_t check = current;
             
-            // Komplettes Loch ausmessen
             while (check < end && os_getMapEntry(heap, check) == 0x00) {
                 free_space++;
                 check++;
             }
             
-            // Ist das Loch groß genug UND größer als unser bisher härtester Treffer?
             if (free_space >= size && free_space > worst_size) {
                 worst_size = free_space;
-                worst_addr = current;
+                worst_chunk = current;
             }
             current = check; 
         } else {
@@ -182,5 +168,5 @@ mem_addr_t os_Memory_WorstFit(heap_t* heap, size_t size)
         }
     }
     
-    return worst_addr;
+    return worst_chunk;
 }
