@@ -636,7 +636,8 @@ bool os_kill(process_id_t pid)
 	os_processes[pid].state = OS_PS_UNUSED;
 	// (TASK_4) Call garbage collection
 
-	for (size_t i = 0; i < os_getHeapListLength(); i++) {
+	size_t HeapListLength = os_getHeapListLength();
+	for (size_t i = 0; i < HeapListLength; i++) {
         os_freeProcessMemory(os_lookupHeap(i), pid);
     }
 

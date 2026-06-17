@@ -9,6 +9,7 @@
 /*!
  *  Checks whether given process is runnable
  *
+ *
  *  \param process A pointer on the process
  *  \return The state of the process, true if it is ready or running, false otherwise
  */
